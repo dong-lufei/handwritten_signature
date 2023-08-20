@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>canvas 手写签名功能</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+
+      .wrap {
+        text-align: center;
+      }
+
+      .buttons {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+
+      .button {
+        margin: 0 10px;
+      }
+
+      #canvas {
+        background-color: #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <canvas width="600" height="400" id="canvas"></canvas>
+      <div class="buttons">
+        <button class="button" id="lineColor">笔触颜色</button>
+        <button class="button" id="lineSize">笔触大小</button>
+        <button class="button" id="prev">撤销到上一步</button>
+        <button class="button" id="reset">重写</button>
+        <button class="button" id="saveImg">保存为图片</button>
+      </div>
+    </div>
+    <script>
+      window.onload = function () {
+        let isDrawing = false // 标志绘画状态，默认没有按下
+        let points = [] // 记录当前绘画路径的点
+        let allPoints = [] // 记录全部绘画路径的点
+        let allColors = [] // 记录全部绘画路径的颜色
+        let allSizes = [] // 记录全部绘画路径的大小
+
+        // 获取canvas元素
+        const canvas = document.getElementById("canvas")
+        // 获取canvas的上下文
+        const ctx = canvas.getContext("2d")
+
+        /**
+         * 设置笔触颜色
+         */
+        function setLineColor() {
+          const color = prompt("请输入笔触颜色（默认值是 #000 (black)：")
+          ctx.strokeStyle = color
+        }
+
+        /**
+         * 设置笔触大小
+         */
+        function setLineSize() {
+          const size = prompt("请输入笔触大小（默认值是 1：")
+          ctx.lineWidth = parseInt(size)
+        }
+
+        // 监听笔触颜色按钮的点击事件
+        const lineColorButton = document.getElementById("lineColor")
+        lineColorButton.addEventListener("click", setLineColor)
+
+        // 监听笔触大小按钮的点击事件
+        const lineSizeButton = document.getElementById("lineSize")
+        lineSizeButton.addEventListener("click", setLineSize)
+
+        /**
+         * 绘制路径
+         */
+        function draw(startX, startY, endX, endY, color, size) {
+          ctx.strokeStyle = color
+          ctx.lineWidth = size
+          ctx.beginPath()
+          ctx.moveTo(startX, startY)
+          ctx.lineTo(endX, endY)
+          ctx.stroke()
+          console.log(11111111, ctx.lineWidth)
+        }
+
+        /**
+         * 开始绘画
+         */
+        function startDrawing(x, y) {
+          isDrawing = true
+          points.push({ x, y })
+        }
+
+        /**
+         * 继续绘画
+         */
+        function continueDrawing(x, y) {
+          if (!isDrawing) return
+          const lastPoint = points[points.length - 1]
+          draw(lastPoint.x, lastPoint.y, x, y, ctx.strokeStyle, ctx.lineWidth)
+          points.push({ x, y })
+        }
+
+        /**
+         * 结束绘画
+         */
+        function stopDrawing() {
+          isDrawing = false
+          allPoints.push(points)
+          allColors.push(ctx.strokeStyle)
+          allSizes.push(ctx.lineWidth)
+          points = []
+        }
+
+        /**
+         * 撤销上一步操作
+         */
+        function undo() {
+          if (allPoints.length === 0) return
+          allPoints.pop()
+          allColors.pop()
+          allSizes.pop()
+          redraw()
+        }
+
+        /**
+         * 清空画布
+         */
+        function resetPath() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+        }
+
+        /**
+         * 重新绘制所有路径
+         */
+        function redraw() {
+          resetPath()
+          allPoints.forEach((points, index) => {
+            const color = allColors[index]
+            const size = allSizes[index]
+            points.forEach((item, i) => {
+              const next = points[i + 1]
+              if (next) {
+                draw(item.x, item.y, next.x, next.y, color, size)
+              }
+            })
+          })
+        }
+
+        // 监听鼠标事件
+        canvas.addEventListener("mousedown", e => {
+          const { offsetX, offsetY } = e
+          startDrawing(offsetX, offsetY)
+        })
+
+        canvas.addEventListener("mousemove", e => {
+          const { offsetX, offsetY } = e
+          continueDrawing(offsetX, offsetY)
+        })
+
+        canvas.addEventListener("mouseup", stopDrawing)
+
+        // 监听触摸事件
+        canvas.addEventListener("touchstart", e => {
+          e.preventDefault()
+          const touch = e.touches[0]
+          const { clientX, clientY } = touch
+          const { left, top } = canvas.getBoundingClientRect()
+          const offsetX = clientX - left
+          const offsetY = clientY - top
+          startDrawing(offsetX, offsetY)
+        })
+
+        canvas.addEventListener("touchmove", e => {
+          e.preventDefault()
+          const touch = e.touches[0]
+          const { clientX, clientY } = touch
+          const { left, top } = canvas.getBoundingClientRect()
+          const offsetX = clientX - left
+          const offsetY = clientY - top
+          continueDrawing(offsetX, offsetY)
+        })
+
+        canvas.addEventListener("touchend", stopDrawing)
+
+        // 监听撤销按钮的点击事件
+        const prevButton = document.getElementById("prev")
+        prevButton.addEventListener("click", undo)
+
+        // 监听重写按钮的点击事件
+        const resetButton = document.getElementById("reset")
+        resetButton.addEventListener("click", () => {
+          allPoints = []
+          allColors = []
+          allSizes = []
+          resetPath()
+        })
+
+        // 监听保存为图片按钮的点击事件
+        const saveImgButton = document.getElementById("saveImg")
+        saveImgButton.addEventListener("click", () => {
+          const dataURL = canvas.toDataURL("image/png")
+          const link = document.createElement("a")
+          link.href = dataURL
+          link.download = "signature.png"
+          link.click()
+        })
+      }
+    </script>
+  </body>
+</html>
